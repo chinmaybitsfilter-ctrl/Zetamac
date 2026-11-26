@@ -1,0 +1,9 @@
+{
+  "name": "QuantMac — Mental Maths & Quant Puzzles",
+  "short_name": "QuantMac",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#1a0f1f",
+  "theme_color": "#1a0f1f",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

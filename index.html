@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuantMac Trainer</title>
+<meta name="theme-color" content="#1a0f1f">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;500;700&family=Inter:wght@400;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* VOICE: focused, quick, a trading-desk drill tool — no fluff.
+   IDEA: a dealer's night screen; the problem is the one big number.
+   PICTURE: the live problem itself, huge, with the clock ticking down.
+   COLOUR and TYPE: plum-black ground, white ink, rose accent, dusk support; Inter Tight 300 large.
+   LAYOUT: one centered column; cards grid for modes; stacks on phones. */
+:root{color-scheme:dark;--bg:#1a0f1f;--panel:#24162b;--line:#3a2844;--ink:#fbf6fd;--dim:#b7a6c4;--rose:#ff8fa3;--dusk:#8f7aa8;--good:#7fe0b0;--bad:#ff6b6b}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+button,input,select{font:inherit;color:inherit}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:14px max(4vw,16px);border-bottom:1px solid var(--line)}
+.logo{font:700 20px 'Inter Tight',sans-serif;letter-spacing:-.02em;cursor:pointer}
+.logo b{color:var(--rose)}
+nav{display:flex;flex-wrap:wrap;gap:4px}
+nav button{background:none;border:0;padding:10px 12px;border-radius:8px;color:var(--dim);cursor:pointer;min-height:44px}
+nav button.on,nav button:hover{color:var(--ink);background:var(--panel)}
+main{max-width:1100px;margin:0 auto;padding:clamp(20px,4vw,48px) max(4vw,16px)}
+section{display:none}section.on{display:block}
+h1{font:300 clamp(32px,5vw,52px)/1.05 'Inter Tight',sans-serif;letter-spacing:-.03em;margin:0 0 10px;text-wrap:balance}
+h2{font:500 24px/1.2 'Inter Tight',sans-serif;margin:28px 0 12px}
+p.lead{color:var(--dim);max-width:62ch;margin:0 0 26px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;text-align:left;transition:border-color .15s,transform .15s}
+.card:hover,.card:focus-visible{border-color:var(--rose);outline:none;transform:translateY(-2px)}
+.card h3{margin:0 0 4px;font:500 18px 'Inter Tight',sans-serif}
+.card p{margin:0;color:var(--dim);font-size:14px}
+.card .tag{display:inline-block;font-size:13px;color:var(--rose);margin-top:10px}
+.btn{background:var(--rose);color:#1a0f1f;border:0;border-radius:10px;padding:12px 22px;font-weight:600;cursor:pointer;min-height:44px}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.set{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.set label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}
+.set input[type=number]{width:84px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:16px}
+select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px;font-size:16px}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--rose)}
+/* game */
+.bar{display:flex;justify-content:space-between;align-items:baseline;gap:12px;color:var(--dim)}
+.bar strong{font:500 22px 'JetBrains Mono',monospace;color:var(--ink)}
+.track{height:4px;background:var(--line);border-radius:4px;margin:10px 0 0;overflow:hidden}
+.track i{display:block;height:100%;background:var(--rose);width:100%}
+.stage{min-height:46vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+#prob{font:300 clamp(36px,8vw,84px)/1.1 'Inter Tight',sans-serif;letter-spacing:-.02em;overflow-wrap:anywhere}
+#prob.long{font-size:clamp(22px,4vw,38px);max-width:30ch}
+#ans{width:min(100%,360px);text-align:center;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:14px;font:500 32px 'JetBrains Mono',monospace}
+#ans.ok{border-color:var(--good)}#ans.no{border-color:var(--bad);animation:shake .25s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.hint{color:var(--dim);font-size:14px}
+.pad{display:none;grid-template-columns:repeat(4,1fr);gap:8px;width:min(100%,380px)}
+.pad.on{display:grid}
+.pad button{min-height:54px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font:500 22px 'JetBrains Mono',monospace}
+.pad button:active{background:var(--line)}
+.pad .go{background:var(--rose);color:#1a0f1f;border:0}
+/* results */
+.big{font:300 clamp(64px,14vw,140px)/1 'Inter Tight',sans-serif;letter-spacing:-.04em}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:20px 0}
+.kpi{background:var(--panel);border-radius:12px;padding:12px 14px}
+.kpi span{display:block;color:var(--dim);font-size:13px}
+.kpi b{font:500 22px 'JetBrains Mono',monospace}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--dim);font-weight:400;font-size:13px}
+td.n{text-align:right;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.scroll{overflow-x:auto}
+.good{color:var(--good)}.badc{color:var(--bad)}
+.newbest{color:var(--rose);font-weight:600}
+/* puzzles */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chip{border:1px solid var(--line);background:none;border-radius:999px;padding:8px 14px;cursor:pointer;min-height:40px}
+.chip.on{background:var(--rose);color:#1a0f1f;border-color:var(--rose)}
+.plist{display:grid;gap:8px}
+.pitem{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;width:100%}
+.pitem:hover{border-color:var(--rose)}
+.pitem .t{flex:1}
+.pitem small{color:var(--dim)}
+.dots{color:var(--rose);letter-spacing:2px;white-space:nowrap}
+.done{color:var(--good);font-weight:600}
+.pq{font-size:18px;max-width:68ch}
+.reveal{background:var(--panel);border-left:3px solid var(--dusk);border-radius:8px;padding:12px 16px;margin:12px 0;max-width:72ch}
+.txt{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;width:min(100%,260px)}
+.fig{position:relative;height:260px;background:var(--panel);border-radius:14px;margin:10px 0}
+.fig canvas{position:absolute;inset:0;width:100%;height:100%}
+.meter{height:8px;background:var(--line);border-radius:6px;overflow:hidden;min-width:60px}
+.meter i{display:block;height:100%;background:var(--rose)}
+kbd{border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px}
+footer{color:var(--dim);font-size:13px;text-align:center;padding:30px}
+@media(max-width:600px){table{font-size:13px}.stage{min-height:36vh;gap:14px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" data-go="home">Quant<b>Mac</b></div>
+  <nav>
+    <button data-go="home" class="on">Drills</button>
+    <button data-go="puzzles">Puzzles</button>
+    <button data-go="calib">Calibration</button>
+    <button data-go="stats">Stats</button>
+  </nav>
+</header>
+<main>
+
+<section id="home" class="on">
+  <h1>Mental maths for quant interviews</h1>
+  <p class="lead">Zetamac-style timed drills — answers auto-submit the instant they're right — plus Optiver-style tests, probability sprints, sequences, estimation, a brainteaser bank and calibration practice.</p>
+  <div class="grid" id="modes"></div>
+</section>
+
+<section id="setup">
+  <h1 id="setTitle"></h1>
+  <p class="lead" id="setDesc"></p>
+  <div id="setBody"></div>
+  <div class="row"><button class="btn" id="startBtn">Start</button><button class="btn ghost" data-go="home">Back</button><span class="hint">or press <kbd>Enter</kbd></span></div>
+</section>
+
+<section id="game">
+  <div class="bar"><span>Time <strong id="time">0</strong></span><span id="modeName"></span><span>Score <strong id="score">0</strong></span></div>
+  <div class="track"><i id="trk"></i></div>
+  <div class="stage">
+    <div id="prob"></div>
+    <input id="ans" autocomplete="off" inputmode="decimal" spellcheck="false" aria-label="Answer">
+    <div class="hint" id="ghint"></div>
+    <div class="pad" id="pad"></div>
+    <div class="row"><button class="btn ghost" id="skipBtn">Skip (Tab)</button><button class="btn ghost" id="quitBtn">End (Esc)</button></div>
+  </div>
+</section>
+
+<section id="results">
+  <div class="hint" id="rMode"></div>
+  <div class="big" id="rScore"></div>
+  <div id="rBest"></div>
+  <div class="kpis" id="rKpis"></div>
+  <div class="row"><button class="btn" id="againBtn">Play again</button><button class="btn ghost" data-go="home">All modes</button><span class="hint"><kbd>Enter</kbd> to replay</span></div>
+  <div id="rTables"></div>
+</section>
+
+<section id="puzzles">
+  <h1>Brainteaser bank</h1>
+  <p class="lead">Classic quant-interview puzzles: probability, expected value, logic, combinatorics and markets. Try it, take a hint, check a numeric answer, then read the full solution. Fractions like 2/3 are accepted.</p>
+  <div class="filters" id="pf"></div>
+  <div class="row" style="margin-bottom:14px"><button class="btn ghost" id="randP">Random unsolved</button><span class="hint" id="pcount"></span></div>
+  <div class="plist" id="plist"></div>
+</section>
+
+<section id="pdetail">
+  <button class="btn ghost" data-go="puzzles">← All puzzles</button>
+  <h1 id="pdTitle" style="margin-top:18px"></h1>
+  <div class="hint" id="pdMeta"></div>
+  <p class="pq" id="pdQ"></p>
+  <div class="row" id="pdCheck"><input class="txt" id="pdIn" placeholder="Your answer" autocomplete="off"><button class="btn" id="pdGo">Check</button><span id="pdRes"></span></div>
+  <div class="row" style="margin-top:12px"><button class="btn ghost" id="pdHint">Hint</button><button class="btn ghost" id="pdSol">Show solution</button><button class="btn ghost" id="pdNext">Next →</button></div>
+  <div id="pdOut"></div>
+</section>
+
+<section id="calib">
+  <h1>90% confidence intervals</h1>
+  <p class="lead">Interviewers (Jane Street, SIG, Optiver) love asking for ranges. For each question give a low and high you're 90% sure contains the truth. A well-calibrated trader hits about 9 of 10 — with intervals as tight as possible.</p>
+  <div id="cBody"></div>
+</section>
+
+<section id="stats">
+  <h1>Your progress</h1>
+  <p class="lead">Stored in this browser only. Scores per mode, the trend, and your weakest question types (lowest accuracy, slowest answers) — drill those.</p>
+  <div id="sBody"></div>
+</section>
+</main>
+<footer>QuantMac · built for quant prep · works offline once installed</footer>
+
+<script>
+{
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const gcd=(a,b)=>{a=Math.abs(a);b=Math.abs(b);while(b)[a,b]=[b,a%b];return a};
+const rd=(x,p=6)=>Math.round(x*10**p)/10**p;
+const F=(n,d)=>{if(d<0){n=-n;d=-d}const g=gcd(n,d)||1;return{n:n/g,d:d/g}};
+const fs=f=>f.d===1?String(f.n):f.n+'/'+f.d;
+const C=(n,k)=>{let r=1;for(let i=1;i<=k;i++)r=r*(n-k+i)/i;return Math.round(r)};
+const Pm=(n,k)=>{let r=1;for(let i=0;i<k;i++)r*=n-i;return r};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store={get(k,d){try{const v=localStorage.getItem('qm_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('qm_'+k,JSON.stringify(v))}catch(e){}}};
+
+const Q=(text,answer,type,o={})=>({text,answer,type,tol:o.tol??1e-9,rel:o.rel,noFrac:o.noFrac,show:o.show??String(rd(answer,6))});
+const QF=(text,f,type,o={})=>Q(text,f.n/f.d,type,{tol:0.0011,show:fs(f)+(f.d!==1?' ≈ '+rd(f.n/f.d,4):''),...o});
+
+function parseAns(s){
+  s=s.replace(/[\s,]/g,'').replace(/[−–]/g,'-').replace(/%$/,'').replace(/^\$/,'');
+  if(/^-?\d+\/\d+$/.test(s)){const[a,b]=s.split('/').map(Number);return b?a/b:NaN}
+  if(/^-?(\d+\.?\d*|\.\d+)$/.test(s))return parseFloat(s);
+  return NaN;
+}
+function check(q,raw){
+  if(q.noFrac&&raw.includes('/'))return false;
+  const v=parseAns(raw);if(isNaN(v))return false;
+  const a=q.answer;
+  if(q.rel)return Math.abs(v-a)<=q.rel*Math.abs(a);
+  return Math.abs(v-a)<=q.tol;
+}
+
+/* ---------- generators ---------- */
+function genClassic(s){
+  const ops=['add','sub','mul','div'].filter(o=>s[o]);if(!ops.length)ops.push('add');
+  const op=pick(ops);
+  if(op==='add'||op==='sub'){const a=ri(s.a1,s.a2),b=ri(s.b1,s.b2);
+    return op==='add'?Q(`${a} + ${b}`,a+b,'add'):Q(`${a+b} − ${a}`,b,'sub')}
+  const a=ri(s.m1,s.m2),b=ri(s.n1,s.n2);
+  if(op==='mul')return Math.random()<.5?Q(`${a} × ${b}`,a*b,'mul'):Q(`${b} × ${a}`,a*b,'mul');
+  return Q(`${a*b} ÷ ${a}`,b,'div');
+}
+function genDecimals(){
+  switch(ri(1,6)){
+    case 1:{const a=ri(11,99)/10,b=ri(2,9);return Q(`${a} × ${b}`,rd(a*b),'dec-mul')}
+    case 2:{const a=ri(11,49)/10,b=ri(11,49)/10;return Q(`${a} × ${b}`,rd(a*b),'dec-mul')}
+    case 3:{const a=pick([0.25,0.75,0.125,0.2,0.4,0.6,0.05,1.25,2.5,0.375]),b=ri(4,99);return Q(`${a} × ${b}`,rd(a*b),'dec-mul')}
+    case 4:{let a=ri(100,9999)/100,b=ri(10,999)/100;if(Math.random()<.5)return Q(`${a} + ${b}`,rd(a+b),'dec-add');if(b>a)[a,b]=[b,a];return Q(`${a} − ${b}`,rd(a-b),'dec-add')}
+    case 5:{const b=pick([0.2,0.25,0.4,0.5,0.8,1.2,1.5,2.5,0.3,0.6,0.05]),q=ri(2,40);return Q(`${rd(b*q)} ÷ ${b}`,q,'dec-div')}
+    default:{const y=pick([4,8,5,16,20,25,40]);let x=ri(1,y*3);if(x%y===0)x++;return Q(`${x} ÷ ${y}`,rd(x/y),'dec-div')}
+  }
+}
+function genFractions(){
+  const b=ri(2,12),d=ri(2,12),a=ri(1,b-1),c=ri(1,d-1);
+  switch(ri(1,6)){
+    case 1:return Math.random()<.6?QF(`${a}/${b} + ${c}/${d}`,F(a*d+c*b,b*d),'frac-add'):QF(`${a}/${b} − ${c}/${d}`,F(a*d-c*b,b*d),'frac-add');
+    case 2:return QF(`${a}/${b} × ${c}/${d}`,F(a*c,b*d),'frac-mul');
+    case 3:return QF(`${a}/${b} ÷ ${c}/${d}`,F(a*d,b*c),'frac-mul');
+    case 4:{const D=pick([4,8,16,20,25,40,32]);let n=ri(1,D-1);if(gcd(n,D)>1&&D!==25)n=n|1;return Q(`${n}/${D} as a decimal`,rd(n/D),'frac-dec',{noFrac:true})}
+    case 5:{const D=pick([3,6,7,9,11,12,13,17]);let n=ri(1,D-1);while(gcd(n,D)>1)n=ri(1,D-1);return Q(`${n}/${D} to 3 d.p.`,n/D,'frac-dec',{tol:0.0011,noFrac:true,show:(n/D).toFixed(3)})}
+    default:{const D=ri(3,12),n=ri(1,D-1),k=ri(2,20)*D;return Q(`${n}/${D} of ${k}`,n*k/D,'frac-of')}
+  }
+}
+function genPercent(){
+  switch(ri(1,5)){
+    case 1:{const p=pick([5,10,12.5,15,20,25,30,35,40,45,60,65,75,80,120,150,2.5,7.5]),y=ri(2,60)*pick([4,8,20,40]);return Q(`${p}% of ${y}`,rd(p*y/100),'pct-of')}
+    case 2:{const b=pick([20,25,40,50,80,200,400,250,125,16,32]),a=ri(1,b);return Q(`${a} is what % of ${b}?`,rd(100*a/b),'pct-what',{tol:0.01})}
+    case 3:{const x=pick([10,20,25,50,5,30,40]),y=pick([10,20,25,50,5,30,40]);return Q(`+${x}% then −${y}% → net % change?`,rd(((1+x/100)*(1-y/100)-1)*100,4),'pct-chain',{tol:0.01})}
+    case 4:{const o=ri(2,80)*5,p=pick([10,20,25,50,5,40]);return Q(`After a ${p}% rise it's ${rd(o*(1+p/100))}. Original?`,o,'pct-rev')}
+    default:{const b=pick([5,10,15,25,35,50,75,125]),y=ri(1,9)*1e6;return Q(`${b} bps of ${y.toLocaleString('en-US')}`,b*y/1e4,'pct-bps')}
+  }
+}
+function genPowers(){
+  switch(ri(1,7)){
+    case 1:{const n=ri(11,99);return Q(`${n}²`,n*n,'square')}
+    case 2:{const n=ri(2,15);return Q(`${n}³`,n**3,'cube')}
+    case 3:{const n=ri(11,99);return Q(`√${n*n}`,n,'sqrt')}
+    case 4:{const n=ri(5,16);return Q(`2^${n}`,2**n,'pow2')}
+    case 5:{const n=ri(12,99);return Q(`${n} × 11`,n*11,'x11')}
+    case 6:{const n=ri(1,19)*10+5;return Q(`${n}²`,n*n,'square-5')}
+    default:{const a=ri(88,112),b=ri(88,112);return Q(`${a} × ${b}`,a*b,'near-100')}
+  }
+}
+function genBig(){
+  switch(ri(1,4)){
+    case 1:{const a=ri(12,99),b=ri(12,99);return Q(`${a} × ${b}`,a*b,'mul-2x2')}
+    case 2:{const a=ri(101,999),b=ri(3,9);return Q(`${a} × ${b}`,a*b,'mul-3x1')}
+    case 3:{const a=ri(101,999),b=ri(11,99);return Q(`${a} × ${b}`,a*b,'mul-3x2')}
+    default:{const a=ri(1001,9999),b=ri(3,9);return Q(`${a} × ${b}`,a*b,'mul-4x1')}
+  }
+}
+function genEstimate(s){
+  const rel=(s.tol||2)/100,o={rel};
+  switch(ri(1,7)){
+    case 1:{const a=ri(101,999),b=ri(101,999);return Q(`≈ ${a} × ${b}`,a*b,'est-mul',o)}
+    case 2:{const a=ri(1000,99999),b=ri(13,97);return Q(`≈ ${a} ÷ ${b}`,a/b,'est-div',{...o,show:String(rd(a/b,2))})}
+    case 3:{const n=ri(101,9999);return Q(`≈ √${n}`,Math.sqrt(n),'est-sqrt',{...o,show:String(rd(Math.sqrt(n),3))})}
+    case 4:{const p=ri(2,12),n=ri(3,20);const v=(1+p/100)**n;return Q(`≈ ${rd(1+p/100,2)}^${n}`,v,'est-compound',{...o,show:String(rd(v,3))})}
+    case 5:{const p=ri(111,899)/10,y=ri(1000,99999);return Q(`≈ ${p}% of ${y}`,p*y/100,'est-pct',{...o,show:String(rd(p*y/100,1))})}
+    case 6:{const n=ri(2,500);return Q(`≈ ln(${n})`,Math.log(n),'est-log',{...o,show:String(rd(Math.log(n),3))})}
+    default:{const n=ri(11,97);return Q(`≈ 1/${n}`,1/n,'est-recip',{...o,show:String(rd(1/n,4))})}
+  }
+}
+function genSeq(){
+  let a=[],ty;
+  switch(ri(1,12)){
+    case 1:{const x=ri(-20,50),d=pick([-13,-9,-7,-6,-4,3,4,6,7,8,9,11,12,13,17]);for(let i=0;i<6;i++)a.push(x+i*d);ty='arithmetic';break}
+    case 2:{const x=ri(1,6),r=ri(2,4);for(let i=0;i<6;i++)a.push(x*r**i);ty='geometric';break}
+    case 3:{const k=ri(1,8),c=ri(-5,10);for(let i=0;i<6;i++)a.push((k+i)**2+c);ty='squares+c';break}
+    case 4:{const k=ri(1,5),c=ri(-3,5);for(let i=0;i<6;i++)a.push((k+i)**3+c);ty='cubes+c';break}
+    case 5:{a=[ri(1,9),ri(1,9)];while(a.length<7)a.push(a[a.length-1]+a[a.length-2]);ty='fibonacci';break}
+    case 6:{const p=ri(-5,10),q=ri(-3,6),c=ri(1,3);for(let n=1;n<=6;n++)a.push(p+q*n+c*n*n);ty='2nd-difference';break}
+    case 7:{const x=ri(1,20),d1=ri(2,9),y=ri(20,60),d2=ri(1,6);for(let i=0;i<7;i++)a.push(i%2===0?x+(i/2)*d1:y-((i-1)/2)*d2);ty='interleaved';break}
+    case 8:{const m=ri(2,3),c=pick([-2,-1,1,2,3]);a=[ri(1,6)];while(a.length<6)a.push(a[a.length-1]*m+c);ty='a·m+c';break}
+    case 9:{const P=[2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73];const s=ri(0,14);a=P.slice(s,s+6);ty='primes';break}
+    case 10:{const c=ri(0,10);for(let n=ri(1,5),i=0;i<6;i++,n++)a.push(n*(n+1)/2+c);ty='triangular';break}
+    case 11:{a=[ri(1,4)];for(let i=2;a.length<6;i++)a.push(a[a.length-1]*i);ty='×2,×3,×4…';break}
+    default:{const k=ri(1,6);a=[ri(1,9)];for(let i=1;a.length<7;i++)a.push(i%2?a[a.length-1]+k:a[a.length-1]*2);ty='alternating +k, ×2';break}
+  }
+  const ans=a.pop();return Q(a.join(', ')+', ?',ans,'seq: '+ty);
+}
+const CARDS=[
+  ['P(2 cards drawn are both aces)',F(1,221)],['P(2 cards drawn are both hearts)',F(1,17)],
+  ['P(2 cards drawn share a suit)',F(4,17)],['P(2 cards drawn are a pair)',F(1,17)],
+  ['P(1st card ace, 2nd card king)',F(4,663)],['P(at least one ace in 2 cards)',F(33,221)],
+  ['P(one card is a face card J/Q/K)',F(3,13)],['P(one card is red or an ace)',F(7,13)]];
+function genProb(){
+  switch(ri(1,13)){
+    case 1:{const s=ri(2,12);return QF(`P(sum of two dice = ${s})`,F(6-Math.abs(s-7),36),'prob-dice')}
+    case 2:{const s=ri(3,11);let w=0;for(let k=s;k<=12;k++)w+=6-Math.abs(k-7);return QF(`P(sum of two dice ≥ ${s})`,F(w,36),'prob-dice')}
+    case 3:{const n=ri(2,6),k=ri(0,n);return QF(`P(exactly ${k} heads in ${n} fair flips)`,F(C(n,k),2**n),'prob-coin')}
+    case 4:{const n=ri(2,8);return QF(`P(at least one head in ${n} flips)`,F(2**n-1,2**n),'prob-coin')}
+    case 5:{const n=ri(2,9);return Q(`E[sum of ${n} fair dice]`,3.5*n,'prob-ev')}
+    case 6:{const n=ri(5,12),k=ri(2,Math.min(5,n-2));return Q(`C(${n}, ${k})`,C(n,k),'prob-comb')}
+    case 7:{const n=ri(4,9),k=ri(2,3);return Q(`Ordered ways to pick ${k} of ${n} people`,Pm(n,k),'prob-comb')}
+    case 8:{const[t,f]=pick(CARDS);return QF(t,f,'prob-cards')}
+    case 9:{const p=pick([F(1,2),F(1,3),F(1,4),F(1,6),F(2,3),F(3,4),F(1,5),F(2,5)]),W=ri(1,10)*p.d,L=ri(1,10)*p.d;
+      return Q(`Win $${W} w.p. ${fs(p)}, else lose $${L}. EV?`,(p.n*W-(p.d-p.n)*L)/p.d,'prob-ev')}
+    case 10:{const n=ri(2,5);return QF(`P(at least one 6 in ${n} rolls)`,F(6**n-5**n,6**n),'prob-dice',{tol:0.0015})}
+    case 11:{const t1=ri(2,10),t2=ri(2,10),r1=ri(1,t1),r2=ri(1,t2);
+      return QF(`Urn A: ${r1} red of ${t1}. Urn B: ${r2} red of ${t2}. Pick an urn at random, draw red. P(urn A)?`,F(r1*t2,r1*t2+r2*t1),'prob-bayes')}
+    case 12:{const s=ri(2,6);return QF(`Expected rolls of a die until you get ${s===6?'a 6':s+' or higher'}`,F(6,7-s),'prob-ev')}
+    default:{const n=ri(2,20);return QF(`Variance of #heads in ${n} fair flips`,F(n,4),'prob-var')}
+  }
+}
+function genOptiver(){
+  const r=Math.random();
+  if(r<.35)return genClassic({add:1,sub:1,mul:1,div:1,a1:10,a2:999,b1:10,b2:999,m1:2,m2:99,n1:2,n2:20});
+  if(r<.6)return genDecimals();
+  if(r<.8){const q=genFractions();return q}
+  return genPercent();
+}
+const CATS={decimals:['Decimals',genDecimals],fractions:['Fractions',genFractions],percent:['Percentages',genPercent],powers:['Squares & powers',genPowers],big:['Big multiplication',genBig],seq:['Sequences',genSeq],prob:['Probability',genProb],estimate:['Estimation',genEstimate],classic:['Classic +−×÷',s=>genClassic(DEFAULT_CLASSIC)]};
+const DEFAULT_CLASSIC={add:1,sub:1,mul:1,div:1,a1:2,a2:100,b1:2,b2:100,m1:2,m2:12,n1:2,n2:100};
+
+/* ---------- modes ---------- */
+const MODES=[
+  {id:'classic',name:'Zetamac Classic',desc:'The original: + − × ÷ with custom ranges. Default 120 s. The benchmark most firms ask about — aim for 40+, strong candidates hit 60–80.',dur:120,tag:'Most popular'},
+  {id:'optiver',name:'Optiver 80-in-8 style',desc:'80 mixed questions (integers, decimals, fractions, %) in 8 minutes. Press Enter to submit; wrong answers cost a point.',dur:480,maxQ:80,submit:'enter',penalty:1,fixed:true,tag:'Test simulation'},
+  {id:'decimals',name:'Decimals',desc:'Decimal × ÷ + −, e.g. 0.375 × 48, 3.6 ÷ 0.4, 7 ÷ 8.',dur:120,gen:genDecimals},
+  {id:'fractions',name:'Fractions',desc:'Add/multiply/divide fractions, fraction → decimal (7/16, 3/7 to 3 d.p.). Answer as a fraction or decimal.',dur:120,gen:genFractions},
+  {id:'percent',name:'Percentages & bps',desc:'x% of y, what % is it, chained % moves, reverse %, basis points.',dur:120,gen:genPercent},
+  {id:'powers',name:'Squares, cubes & roots',desc:'Squares to 99², cubes to 15³, roots, powers of 2, ×11, near-100 tricks.',dur:120,gen:genPowers},
+  {id:'big',name:'Big multiplication',desc:'2×2, 3×1, 3×2 and 4×1 digit products — the SIG / IMC staple.',dur:180,gen:genBig},
+  {id:'estimate',name:'Estimation',desc:'Fast approximations within a tolerance: 3-digit products, roots, ln, 1.07^10, reciprocals.',dur:180,gen:genEstimate,tag:'Accepts ± tolerance'},
+  {id:'seq',name:'Number sequences',desc:'Find the next term: arithmetic, geometric, 2nd differences, interleaved, primes, Fibonacci-like…',dur:180,gen:genSeq},
+  {id:'prob',name:'Probability sprint',desc:'Dice, coins, cards, Bayes, EV and combinatorics, generated fresh. Fractions or 3-d.p. decimals accepted.',dur:300,gen:genProb,tag:'Quant core'},
+  {id:'mix',name:'Custom mix',desc:'Pick any categories and a duration — build your own daily set.',dur:300}
+];
+const M=Object.fromEntries(MODES.map(m=>[m.id,m]));
+$('#modes').innerHTML=MODES.map(m=>`<button class="card" data-mode="${m.id}"><h3>${m.name}</h3><p>${m.desc}</p>${m.tag?`<span class="tag">${m.tag}</span>`:''}</button>`).join('')+
+ `<button class="card" data-go="puzzles"><h3>Brainteaser bank</h3><p><span id="pzn"></span> classic interview puzzles with hints and full solutions.</p><span class="tag">Untimed</span></button>
+  <button class="card" data-go="calib"><h3>Calibration (90% CI)</h3><p>Give ranges for Fermi-style facts and learn to size your uncertainty.</p><span class="tag">Market-making skill</span></button>`;
+
+/* ---------- navigation ---------- */
+function show(id){
+  $$('section').forEach(s=>s.classList.toggle('on',s.id===id));
+  $$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.go===id||(id==='pdetail'&&b.dataset.go==='puzzles')||(['setup','game','results'].includes(id)&&b.dataset.go==='home')));
+  if(id!=='game'&&G&&!G.ended)stopGame(false);
+  if(id==='puzzles')renderPuzzles();
+  if(id==='calib')renderCalib();
+  if(id==='stats')renderStats();
+  window.scrollTo(0,0);
+}
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]');if(g){show(g.dataset.go);return}
+  const m=e.target.closest('[data-mode]');if(m)openSetup(m.dataset.mode);
+});
+
+/* ---------- setup ---------- */
+let cur=null;
+const settings=store.get('settings',{});
+function sget(id){return settings[id]||{}}
+function openSetup(id){
+  cur=M[id];const s=sget(id);
+  $('#setTitle').textContent=cur.name;$('#setDesc').textContent=cur.desc;
+  const durs=[30,60,120,180,300,480,600];
+  const dsel=cur.fixed?'<p class="hint">Fixed: 80 questions or 8 minutes, whichever comes first. +1 correct, −1 wrong, 0 skipped.</p>':
+    `<label>Duration <select id="sDur">${durs.map(d=>`<option value="${d}" ${(s.dur||cur.dur)==d?'selected':''}>${d<60?d+' s':d/60+' min'}</option>`).join('')}</select></label>`;
+  let body='';
+  if(id==='classic'){
+    const c={...DEFAULT_CLASSIC,...s};
+    const n=(k)=>`<input type="number" id="c_${k}" value="${c[k]}">`;
+    body=`<label><input type="checkbox" id="c_add" ${c.add?'checked':''}> Addition: (${n('a1')} to ${n('a2')}) + (${n('b1')} to ${n('b2')})</label>
+      <label><input type="checkbox" id="c_sub" ${c.sub?'checked':''}> Subtraction: addition problems in reverse</label>
+      <label><input type="checkbox" id="c_mul" ${c.mul?'checked':''}> Multiplication: (${n('m1')} to ${n('m2')}) × (${n('n1')} to ${n('n2')})</label>
+      <label><input type="checkbox" id="c_div" ${c.div?'checked':''}> Division: multiplication problems in reverse</label>
+      <div class="row"><button class="btn ghost" id="cReset" type="button">Reset to Zetamac defaults</button><button class="btn ghost" id="cHard" type="button">Hard preset</button></div>`;
+  }
+  if(id==='estimate')body=`<label>Tolerance <select id="sTol">${[1,2,5,10].map(t=>`<option ${(s.tol||2)==t?'selected':''} value="${t}">± ${t}%</option>`).join('')}</select></label>`;
+  if(id==='mix'){const on=s.cats||['classic','decimals','fractions','percent','prob'];
+    body=Object.entries(CATS).map(([k,[nm]])=>`<label><input type="checkbox" class="mixc" value="${k}" ${on.includes(k)?'checked':''}> ${nm}</label>`).join('');}
+  $('#setBody').innerHTML=`<div class="set">${dsel}${body}</div>`;
+  if(id==='classic'){
+    const fill=o=>Object.entries(o).forEach(([k,v])=>{const el=$('#c_'+k);if(el.type==='checkbox')el.checked=!!v;else el.value=v});
+    $('#cReset').onclick=()=>fill(DEFAULT_CLASSIC);
+    $('#cHard').onclick=()=>fill({add:1,sub:1,mul:1,div:1,a1:10,a2:999,b1:10,b2:999,m1:2,m2:99,n1:2,n2:99});
+  }
+  show('setup');
+}
+function readSetup(){
+  const id=cur.id,s={};
+  if($('#sDur'))s.dur=+$('#sDur').value;
+  if(id==='classic'){for(const k of['add','sub','mul','div'])s[k]=$('#c_'+k).checked?1:0;
+    for(const k of['a1','a2','b1','b2','m1','m2','n1','n2'])s[k]=Math.round(+$('#c_'+k).value)||0;
+    for(const[x,y]of[['a1','a2'],['b1','b2'],['m1','m2'],['n1','n2']])if(s[x]>s[y])[s[x],s[y]]=[s[y],s[x]];
+    if(s.m1===0)s.m1=1;}
+  if(id==='estimate')s.tol=+$('#sTol').value;
+  if(id==='mix'){s.cats=$$('.mixc').filter(c=>c.checked).map(c=>c.value);if(!s.cats.length)s.cats=['classic']}
+  settings[id]=s;store.set('settings',settings);return s;
+}
+$('#startBtn').onclick=()=>startGame(readSetup());
+
+/* ---------- game ---------- */
+let G=null,timer=null;
+const touch=matchMedia('(pointer:coarse)').matches;
+const pad=$('#pad'),inp=$('#ans');
+pad.innerHTML=['7','8','9','⌫','4','5','6','/','1','2','3','−','.','0','Skip','↵'].map(k=>`<button type="button" data-k="${k}" class="${k==='↵'?'go':''}">${k}</button>`).join('');
+if(touch){pad.classList.add('on');inp.readOnly=true}
+pad.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!G)return;const k=b.dataset.k;
+  if(k==='⌫')inp.value=inp.value.slice(0,-1);else if(k==='Skip'){skip();return}else if(k==='↵'){submit();return}else inp.value+=k==='−'?'-':k;onInput()});
+
+function startGame(s){
+  const m=cur;let gen;
+  if(m.id==='classic'){const c={...DEFAULT_CLASSIC,...s};gen=()=>genClassic(c)}
+  else if(m.id==='optiver')gen=genOptiver;
+  else if(m.id==='estimate')gen=()=>genEstimate(s);
+  else if(m.id==='mix')gen=()=>CATS[pick(s.cats)][1](s);
+  else gen=m.gen;
+  const dur=m.fixed?m.dur:(s.dur||m.dur);
+  G={m,gen,dur,s,key:m.id+'|'+dur+(m.id==='classic'?'|'+JSON.stringify({...DEFAULT_CLASSIC,...s,dur:0}):''),
+     enter:m.submit==='enter',pen:m.penalty||0,maxQ:m.maxQ||0,c:0,w:0,k:0,log:[],t0:performance.now(),ended:false};
+  $('#modeName').textContent=m.name;
+  $('#ghint').innerHTML=G.enter?'Type answer, <kbd>Enter</kbd> to submit · <kbd>Tab</kbd> skip':'Auto-submits when correct · <kbd>Tab</kbd> skip · <kbd>Esc</kbd> end';
+  show('game');nextQ();updateBar();
+  clearInterval(timer);timer=setInterval(tick,100);
+  if(!touch)setTimeout(()=>inp.focus(),30);
+}
+function nextQ(){
+  if(G.maxQ&&G.c+G.w+G.k>=G.maxQ){endGame();return}
+  G.q=G.gen();G.qs=performance.now();
+  const p=$('#prob');p.textContent=G.q.text;p.classList.toggle('long',G.q.text.length>18);
+  inp.value='';inp.className='';
+}
+function rec(ok,given){G.log.push({text:G.q.text,show:G.q.show,given,ok,t:(performance.now()-G.qs)/1000,type:G.q.type})}
+function onInput(){if(!G||G.ended||G.enter)return;if(check(G.q,inp.value)){rec('c',inp.value);G.c++;updateBar();nextQ()}}
+function submit(){
+  if(!G||G.ended)return;const v=inp.value.trim();if(!v)return;
+  if(check(G.q,v)){rec('c',v);G.c++;updateBar();nextQ()}
+  else if(G.enter){rec('w',v);G.w++;updateBar();nextQ()}
+  else{inp.className='';void inp.offsetWidth;inp.className='no'}
+}
+function skip(){if(!G||G.ended)return;rec('s',inp.value);G.k++;updateBar();nextQ();if(!touch)inp.focus()}
+inp.addEventListener('input',onInput);
+inp.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();submit()}
+  else if(e.key==='Tab'){e.preventDefault();skip()}
+  else if(e.key==='Escape'){e.preventDefault();endGame()}
+});
+$('#skipBtn').onclick=skip;$('#quitBtn').onclick=()=>endGame();
+function score(){return G.c-G.pen*G.w}
+function updateBar(){$('#score').textContent=score()+(G.maxQ?` · ${G.c+G.w+G.k}/${G.maxQ}`:'')}
+function tick(){
+  const left=Math.max(0,G.dur-(performance.now()-G.t0)/1000);
+  $('#time').textContent=Math.ceil(left);$('#trk').style.width=(left/G.dur*100)+'%';
+  if(left<=0)endGame();
+}
+function stopGame(){clearInterval(timer);if(G)G.ended=true}
+function endGame(){
+  if(!G||G.ended)return;stopGame();
+  const sc=score(),runs=store.get('runs',[]),best=store.get('best',{});
+  const prev=best[G.key];const isBest=prev===undefined||sc>prev;if(isBest)best[G.key]=sc;
+  runs.push({mode:G.m.id,score:sc,c:G.c,w:G.w,k:G.k,dur:G.dur,date:Date.now()});
+  store.set('runs',runs.slice(-500));store.set('best',best);
+  const ts=store.get('types',{});
+  for(const l of G.log){const t=ts[l.type]||(ts[l.type]={n:0,c:0,time:0});t.n++;if(l.ok==='c'){t.c++;t.time+=l.t}}
+  store.set('types',ts);
+  renderResults(sc,prev,isBest);show('results');G.ended=true;
+  G.readyAt=performance.now()+900;
+}
+function renderResults(sc,prev,isBest){
+  $('#rMode').textContent=`${G.m.name} · ${G.dur<60?G.dur+' s':G.dur/60+' min'}`;
+  $('#rScore').textContent=sc;
+  $('#rBest').innerHTML=isBest&&prev!==undefined?`<span class="newbest">New personal best! (previous ${prev})</span>`:isBest?'<span class="newbest">First run recorded — that’s your benchmark.</span>':`<span class="hint">Personal best: ${prev}</span>`;
+  const done=G.log.filter(l=>l.ok==='c'),att=G.c+G.w;
+  const avg=done.length?done.reduce((a,l)=>a+l.t,0)/done.length:0;
+  $('#rKpis').innerHTML=[['Correct',G.c],['Wrong',G.w],['Skipped',G.k],['Accuracy',att?Math.round(G.c/att*100)+'%':'—'],['Avg time',avg?avg.toFixed(2)+' s':'—'],['Per minute',(G.c/(G.dur/60)).toFixed(1)]]
+    .map(([a,b])=>`<div class="kpi"><span>${a}</span><b>${b}</b></div>`).join('');
+  const slow=[...done].sort((a,b)=>b.t-a.t).slice(0,6);
+  const miss=G.log.filter(l=>l.ok!=='c');
+  const byType={};for(const l of G.log){const t=byType[l.type]||(byType[l.type]={n:0,c:0,t:0});t.n++;if(l.ok==='c'){t.c++;t.t+=l.t}}
+  let h='';
+  if(slow.length)h+=`<h2>Slowest questions</h2><div class="scroll"><table><tr><th>Question</th><th>Answer</th><th class="n">Time</th></tr>${slow.map(l=>`<tr><td>${esc(l.text)}</td><td>${esc(l.show)}</td><td class="n">${l.t.toFixed(1)} s</td></tr>`).join('')}</table></div>`;
+  if(miss.length)h+=`<h2>Missed &amp; skipped</h2><div class="scroll"><table><tr><th>Question</th><th>You</th><th>Correct</th></tr>${miss.map(l=>`<tr><td>${esc(l.text)}</td><td class="badc">${esc(l.given||'—')}</td><td class="good">${esc(l.show)}</td></tr>`).join('')}</table></div>`;
+  const tk=Object.entries(byType);
+  if(tk.length>1)h+=`<h2>By question type</h2><div class="scroll"><table><tr><th>Type</th><th class="n">Done</th><th class="n">Accuracy</th><th class="n">Avg s</th></tr>${tk.map(([k,t])=>`<tr><td>${esc(k)}</td><td class="n">${t.n}</td><td class="n">${Math.round(t.c/t.n*100)}%</td><td class="n">${t.c?(t.t/t.c).toFixed(2):'—'}</td></tr>`).join('')}</table></div>`;
+  $('#rTables').innerHTML=h;
+}
+$('#againBtn').onclick=()=>startGame(G.s);
+document.addEventListener('keydown',e=>{
+  const on=$('section.on').id;
+  if(on==='game'&&e.target!==inp&&!touch&&e.key.length===1){inp.focus()}
+  else if(on==='results'&&e.key==='Enter'&&e.target.tagName!=='BUTTON'&&G&&performance.now()>G.readyAt){e.preventDefault();startGame(G.s)}
+  else if(on==='setup'&&e.key==='Enter'&&e.target.tagName!=='BUTTON'){e.preventDefault();startGame(readSetup())}
+  else if(on==='results'&&e.key==='Escape')show('home');
+});
+
+/* ---------- puzzles ---------- */
+const PZ=[
+ ['Probability','Monty Hall',1,'Three doors: a car behind one, goats behind two. You pick a door; the host, who knows where the car is, opens another door showing a goat and offers a switch. What is your probability of winning if you switch?','Your first pick is right 1/3 of the time. What happens in the other 2/3?',2/3,'Switching wins exactly when your first pick was wrong, which happens with probability 2/3. The host’s reveal concentrates the 2/3 onto the one remaining door.'],
+ ['Probability','Two children',1,'A family has two children and at least one is a boy. What is the probability both are boys?','List the equally likely outcomes BB, BG, GB, GG and condition.',1/3,'Conditioning removes GG, leaving BB, BG, GB equally likely, so P = 1/3. (If instead you are told the older child is a boy, the answer is 1/2.)'],
+ ['Probability','Birthday problem',1,'What is the smallest number of people needed for the chance that two share a birthday to exceed 50% (365 equally likely days)?','Compute P(all distinct) = ∏(1 − k/365) and find when it falls below 1/2.',23,'P(all distinct) for 23 people ≈ 0.493, so P(shared) ≈ 0.507. For 22 it is ≈ 0.476.'],
+ ['Probability','At least one six',1,'You roll a fair die 4 times. Probability of at least one six? (3 d.p.)','Use the complement.',1-(5/6)**4,'1 − (5/6)^4 = 1 − 625/1296 = 671/1296 ≈ 0.518.'],
+ ['Probability','Same suit',1,'Two cards are drawn from a standard deck. Probability they are the same suit?','The first card can be anything.',4/17,'After the first card, 12 of the remaining 51 cards match its suit: 12/51 = 4/17 ≈ 0.235.'],
+ ['Probability','Sum is seven',2,'Two dice sum to 7. What is the probability one of them shows a 3?','Six equally likely ordered outcomes sum to 7.',1/3,'(1,6),(2,5),(3,4),(4,3),(5,2),(6,1): two contain a 3, so 2/6 = 1/3.'],
+ ['Probability','Coin with two heads',2,'A bag has one fair coin and one double-headed coin. You pick one at random, flip it, and see heads. Probability it is the double-headed coin?','Bayes: P(H | double) = 1, P(H | fair) = 1/2.',2/3,'P = (½·1)/(½·1 + ½·½) = (1/2)/(3/4) = 2/3.'],
+ ['Probability','Medical test',2,'A disease affects 1% of people. A test is 99% accurate for both sick and healthy people. You test positive. Probability you have the disease?','Imagine 10,000 people.',0.5,'Of 10,000: 100 sick → 99 positive; 9,900 healthy → 99 false positives. 99/(99+99) = 1/2.'],
+ ['Probability','First to flip heads',1,'You and a friend alternate flipping a fair coin, you first. The first to flip heads wins. Probability you win?','Let p be your win probability and use symmetry after two tails.',2/3,'p = 1/2 + (1/4)p ⇒ p = 2/3.'],
+ ['Probability','Russian roulette',2,'A 6-chamber revolver has 2 bullets in adjacent chambers. The cylinder is spun once, the trigger is pulled at you: click (empty). Before the next pull at you, should you spin again? Give your survival probability with the better choice.','Count which of the 4 empty chambers are followed by a bullet.',3/4,'Without spinning: of the 4 empty chambers only 1 is followed by a bullet, so you survive with 3/4. Spinning gives 4/6 = 2/3. Don’t spin.'],
+ ['Probability','Ants on a triangle',1,'Three ants sit at the corners of a triangle and each walks along an edge in a random direction. Probability that no two ants collide?','Only two of the 8 direction choices avoid a collision.',1/4,'All clockwise or all anticlockwise: 2/8 = 1/4. (Collision probability 3/4.)'],
+ ['Probability','Broken stick',3,'A stick is broken at two uniformly random points. Probability the three pieces form a triangle?','Each piece must be shorter than half the stick; draw the region in the unit square.',1/4,'The valid region (no piece ≥ 1/2) occupies 1/4 of the unit square of break points.'],
+ ['Probability','Points on a circle',3,'Three points are placed uniformly on a circle. Probability they all lie in some semicircle?','For each point, ask if the others lie within the semicircle clockwise from it.',3/4,'For n points the answer is n/2^(n−1); these events are disjoint. For n = 3: 3/4.'],
+ ['Probability','No fixed points',2,'n people put hats in a pile and each takes one at random. For large n, what is the probability nobody gets their own hat? (3 d.p.)','Inclusion–exclusion gives an alternating series.',1/Math.E,'P = Σ (−1)^k/k! → 1/e ≈ 0.368.'],
+ ['Expected value','Rolls until a six',1,'Expected number of rolls of a fair die until the first 6?','Geometric distribution.',6,'Geometric with p = 1/6: E = 1/p = 6.'],
+ ['Expected value','Collect all faces',2,'Expected number of rolls to see all six faces of a die at least once?','Coupon collector: sum of geometrics.',14.7,'6(1 + 1/2 + … + 1/6) = 6 × 2.45 = 14.7.'],
+ ['Expected value','HH vs HT',2,'Expected number of fair coin flips until you see two heads in a row (HH)?','Set up states: start, just saw H.',6,'E0 = 1 + ½E1 + ½E0, E1 = 1 + ½E0 ⇒ E0 = 6. (For HT the answer is 4.)'],
+ ['Expected value','Three heads in a row',2,'Expected flips until three heads in a row?','Generalise: runs of n heads take 2^(n+1) − 2.',14,'2^4 − 2 = 14.'],
+ ['Expected value','Max of two dice',2,'Expected value of the maximum of two fair dice? (fraction or 2 d.p.)','P(max = k) = (2k − 1)/36.',161/36,'Σ k(2k−1)/36 = 161/36 ≈ 4.47.'],
+ ['Expected value','Reroll once',2,'Roll a die and get paid its face value in dollars. After seeing it you may reroll once (and must take the second result). What is the game worth?','Reroll when your first roll is below the EV of a fresh roll (3.5).',4.25,'Keep 4, 5, 6 (avg 5), reroll 1–3 (worth 3.5): ½·5 + ½·3.5 = 4.25.'],
+ ['Expected value','Reroll twice',3,'Same as before but you may roll up to three times, taking the last roll you choose to keep. Value of the game?','With two rolls left the continuation is worth 4.25.',14/3,'Keep the first roll only if it beats 4.25, i.e. 5 or 6: (2/6)·5.5 + (4/6)·4.25 = 14/3 ≈ 4.67.'],
+ ['Expected value','Sum until a six',3,'Roll a die repeatedly until a 6 appears. Expected total of all rolls including the 6?','Expected number of non-six rolls is 5, and each averages 3.',21,'5 non-six rolls × 3 + 6 = 21.'],
+ ['Expected value','Draws to first ace',2,'Cards are turned over from a shuffled deck. Expected position of the first ace?','The 4 aces split the 48 other cards into 5 gaps of equal expected size.',10.6,'Expected cards before the first ace = 48/5 = 9.6, so the ace is at position 10.6 = 53/5.'],
+ ['Expected value','Uniform max and gap',2,'X, Y independent uniform on [0,1]. What is E[|X − Y|]?','By symmetry E[max] = 2/3 and E[min] = 1/3.',1/3,'E|X − Y| = E[max] − E[min] = 2/3 − 1/3 = 1/3.'],
+ ['Expected value','Fixed points',1,'Expected number of people who get their own hat back when n hats are randomly returned?','Linearity of expectation.',1,'Each person matches with probability 1/n; n × 1/n = 1, for any n.'],
+ ['Expected value','Die variance',1,'Variance of a single fair die roll? (fraction or 3 d.p.)','E[X²] = 91/6.',35/12,'91/6 − 3.5² = 91/6 − 49/4 = 35/12 ≈ 2.917.'],
+ ['Logic','25 horses',2,'25 horses, a track that races 5 at a time, no timer. Minimum races to find the fastest 3?','5 heats, a race of winners, then one more race of the remaining contenders.',7,'5 heats + 1 race of winners identifies #1. Only 5 horses can still be 2nd/3rd (A2, A3, B1, B2, C1); one more race. Total 7.'],
+ ['Logic','Burning ropes',1,'Two ropes each take exactly 60 minutes to burn but burn unevenly. How do you measure 45 minutes? (Enter 45 when you have it.)','Lighting both ends halves the time.',45,'Light rope A at both ends and rope B at one end. A finishes at 30 min; then light B’s other end — it finishes 15 min later. Total 45.'],
+ ['Logic','Heavier ball (8)',1,'8 identical-looking balls, one is heavier. Minimum weighings on a balance to find it?','Each weighing has 3 outcomes.',2,'Weigh 3 vs 3: if balanced it is among the other 2 (one more weighing); else take the heavy 3 and weigh 1 vs 1. Two weighings.'],
+ ['Logic','Odd ball (12)',3,'12 balls, one is heavier OR lighter (unknown). Minimum weighings to find it and say which?','24 possibilities, 3 outcomes per weighing.',3,'3³ = 27 ≥ 24 outcomes; a careful 4-4-4 scheme with ball rotation solves it in 3.'],
+ ['Logic','Bridge at night',2,'Four people cross a bridge with one torch; at most two at a time, moving at the slower pace. Times: 1, 2, 5, 10 minutes. Minimum total time?','Send the two slowest together.',17,'1+2 cross (2), 1 returns (1), 5+10 cross (10), 2 returns (2), 1+2 cross (2): 17.'],
+ ['Logic','Pirate gold',3,'5 rational pirates split 100 coins. The most senior proposes; if at least half (including the proposer) agree it passes, else he is thrown overboard. How many coins does the senior pirate keep?','Work backwards from 2 pirates.',98,'Backward induction: with pirates ranked 5 (senior) to 1, the plan is 98, 0, 1, 0, 1 — buy the two pirates who’d get nothing otherwise.'],
+ ['Logic','100 lockers',2,'100 closed lockers; on pass k you toggle every k-th locker, for k = 1…100. How many are open at the end?','A locker is toggled once per divisor.',10,'Only perfect squares have an odd number of divisors: 1, 4, …, 100 → 10 open.'],
+ ['Logic','Socks in the dark',1,'A drawer has 10 black and 10 white socks. How many must you draw blind to guarantee a matching pair?','Pigeonhole.',3,'Two colours, so 3 socks guarantee a pair.'],
+ ['Logic','Fly between trains',1,'Two trains 100 miles apart head toward each other at 50 mph each. A fly at 75 mph zigzags between them until they meet. How far does it fly (miles)?','Don’t sum the series — find the time.',75,'They meet after 1 hour; the fly travels 75 miles.'],
+ ['Logic','Lily pads',1,'A patch of lily pads doubles daily and covers the lake on day 48. On which day did it cover half?','Run it backwards.',47,'Doubling from half to full takes one day: day 47.'],
+ ['Logic','Bat and ball',1,'A bat and ball cost $1.10; the bat costs $1 more than the ball. Ball price in dollars?','Not 0.10.',0.05,'b + (b + 1) = 1.10 ⇒ b = 0.05.'],
+ ['Combinatorics','Trailing zeros',1,'How many trailing zeros does 100! have?','Count factors of 5.',24,'⌊100/5⌋ + ⌊100/25⌋ = 20 + 4 = 24.'],
+ ['Combinatorics','Squares on a chessboard',2,'How many squares of any size are on an 8×8 chessboard?','There are (9 − k)² squares of side k.',204,'1² + 2² + … + 8² = 204.'],
+ ['Combinatorics','Handshakes',1,'10 people each shake hands with everyone else once. How many handshakes?','Choose 2.',45,'C(10,2) = 45.'],
+ ['Combinatorics','Last digit',1,'Last digit of 7^2026?','Powers of 7 cycle with period 4.',9,'7,9,3,1 repeats; 2026 mod 4 = 2 → 9.'],
+ ['Combinatorics','Clock angle',1,'Angle in degrees between the hands at 3:15?','The hour hand moves 0.5° per minute.',7.5,'Minute hand 90°, hour hand 90° + 7.5° → 7.5°.'],
+ ['Markets','Binary call',1,'A stock at $100 will be $110 or $90 with equal probability tomorrow. Zero rates, risk-neutral pricing with these probabilities. Value of a call struck at $100?','Payoff is 10 or 0.',5,'½ × 10 + ½ × 0 = 5.'],
+ ['Markets','Put–call parity',1,'Zero rates, no dividends: S = 100, K = 95, a call costs 8. What should the European put with the same strike and expiry cost?','C − P = S − K.',3,'P = C − (S − K) = 8 − 5 = 3.'],
+ ['Markets','Kelly sizing',2,'You can bet repeatedly on an even-money game you win 60% of the time. What fraction of your bankroll does the Kelly criterion bet?','f* = p − q for even odds.',0.2,'f* = 0.6 − 0.4 = 0.2 → bet 20% each time.'],
+ ['Markets','Correlation floor',3,'Three random variables all have the same pairwise correlation ρ. What is the minimum possible ρ?','The correlation matrix must be positive semi-definite; look at Var(X+Y+Z).',-0.5,'Var(X+Y+Z) = 3 + 6ρ ≥ 0 ⇒ ρ ≥ −1/2.']
+].map((p,i)=>({id:i,cat:p[0],title:p[1],diff:p[2],q:p[3],hint:p[4],ans:p[5],sol:p[6]}));
+$('#pzn').textContent=PZ.length;
+let pf={cat:'All',diff:0},solved=new Set(store.get('solved',[])),curP=null;
+function renderPuzzles(){
+  const cats=['All',...new Set(PZ.map(p=>p.cat))];
+  $('#pf').innerHTML=cats.map(c=>`<button class="chip ${pf.cat===c?'on':''}" data-cat="${c}">${c}</button>`).join('')+
+    [0,1,2,3].map(d=>`<button class="chip ${pf.diff===d?'on':''}" data-diff="${d}">${d?'●'.repeat(d):'Any level'}</button>`).join('');
+  const L=PZ.filter(p=>(pf.cat==='All'||p.cat===pf.cat)&&(!pf.diff||p.diff===pf.diff));
+  $('#pcount').textContent=`${solved.size} of ${PZ.length} solved`;
+  $('#plist').innerHTML=L.map(p=>`<button class="pitem" data-pz="${p.id}"><span class="dots">${'●'.repeat(p.diff)}</span><span class="t">${p.title}<br><small>${p.cat}</small></span>${solved.has(p.id)?'<span class="done">✓</span>':''}</button>`).join('');
+}
+$('#pf').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.cat)pf.cat=b.dataset.cat;else pf.diff=+b.dataset.diff;renderPuzzles()});
+$('#plist').addEventListener('click',e=>{const b=e.target.closest('[data-pz]');if(b)openP(+b.dataset.pz)});
+$('#randP').onclick=()=>{const u=PZ.filter(p=>!solved.has(p.id));openP(pick(u.length?u:PZ).id)};
+function openP(id){
+  curP=PZ[id];$('#pdTitle').textContent=curP.title;$('#pdMeta').textContent=`${curP.cat} · ${'●'.repeat(curP.diff)}${solved.has(id)?' · solved ✓':''}`;
+  $('#pdQ').textContent=curP.q;$('#pdIn').value='';$('#pdRes').textContent='';$('#pdOut').innerHTML='';
+  show('pdetail');$('#pdIn').focus();
+}
+function checkP(){
+  const v=parseAns($('#pdIn').value);if(isNaN(v)){$('#pdRes').innerHTML='<span class="hint">Enter a number or fraction</span>';return}
+  const a=curP.ans,ok=Math.abs(v-a)<=Math.max(0.002,Math.abs(a)*0.002);
+  $('#pdRes').innerHTML=ok?'<span class="good">Correct ✓</span>':'<span class="badc">Not quite — try again or take a hint</span>';
+  if(ok){solved.add(curP.id);store.set('solved',[...solved])}
+}
+$('#pdGo').onclick=checkP;$('#pdIn').addEventListener('keydown',e=>{if(e.key==='Enter')checkP()});
+$('#pdHint').onclick=()=>{$('#pdOut').innerHTML=`<div class="reveal"><b>Hint.</b> ${esc(curP.hint)}</div>`};
+$('#pdSol').onclick=()=>{$('#pdOut').innerHTML=`<div class="reveal"><b>Answer: ${esc(String(rd(curP.ans,4)))}</b><br>${esc(curP.sol)}</div>`};
+$('#pdNext').onclick=()=>openP((curP.id+1)%PZ.length);
+
+/* ---------- calibration ---------- */
+const CAL=[
+ ['Average Earth–Moon distance (km)',384400],['Height of Mount Everest (m)',8849],['Speed of light (km/s)',299792],
+ ['Bones in an adult human body',206],['UN member states',193],['Length of the Nile (km)',6650],['Diameter of the Earth (km)',12742],
+ ['Year Gutenberg’s printing press appeared (approx.)',1440],['Keys on a standard piano',88],['Year of the first Moon landing',1969],
+ ['Height of the Eiffel Tower incl. antennas (m)',330],['Seconds in a week',604800],['2^20',1048576],['e^5',148.41],
+ ['Area of India (million km²)',3.287],['Seconds for sunlight to reach Earth',499],['Elements in the periodic table',118],
+ ['Marathon length (km)',42.195],['ln(1000)',6.908],['√2026',45.01],['Boiling point of water (°F)',212],['Year Newton published the Principia',1687],
+ ['Number of 5-card poker hands, C(52,5)',2598960],['Days in 1000 hours',41.67]];
+let cal=null;
+function renderCalib(){
+  if(!cal){const qs=[...CAL].sort(()=>Math.random()-.5).slice(0,10);cal={qs,i:0,ans:[]}}
+  const b=$('#cBody');
+  if(cal.i<cal.qs.length){
+    const[q]=cal.qs[cal.i];
+    b.innerHTML=`<div class="set"><div class="hint">Question ${cal.i+1} of 10</div><p class="pq">${esc(q)}</p>
+      <div class="row"><input class="txt" id="cLo" placeholder="Low" inputmode="decimal"><input class="txt" id="cHi" placeholder="High" inputmode="decimal"><button class="btn" id="cGo">Lock in</button></div><div id="cMsg" class="hint"></div></div>`;
+    const go=()=>{const lo=parseAns($('#cLo').value),hi=parseAns($('#cHi').value);
+      if(isNaN(lo)||isNaN(hi)||lo>hi){$('#cMsg').textContent='Enter numbers with low ≤ high.';return}
+      cal.ans.push([lo,hi]);cal.i++;renderCalib()};
+    $('#cGo').onclick=go;$('#cHi').addEventListener('keydown',e=>{if(e.key==='Enter')go()});$('#cLo').addEventListener('keydown',e=>{if(e.key==='Enter')$('#cHi').focus()});
+    $('#cLo').focus();
+  }else{
+    const rows=cal.qs.map(([q,t],i)=>{const[lo,hi]=cal.ans[i];return{q,t,lo,hi,hit:t>=lo&&t<=hi,w:hi>0&&lo>0?hi/lo:null}});
+    const hits=rows.filter(r=>r.hit).length;const ws=rows.filter(r=>r.w).map(r=>Math.log10(r.w));
+    const mw=ws.length?ws.reduce((a,b)=>a+b,0)/ws.length:0;
+    const hist=store.get('calib',[]);hist.push({hits,date:Date.now()});store.set('calib',hist.slice(-100));
+    const verdict=hits>=8&&hits<=10?(mw<1?'Well calibrated and fairly tight — nice.':'Good hit rate; now tighten your ranges.'):hits<8?'Overconfident: widen your intervals.':'';
+    b.innerHTML=`<div class="big">${hits}/10</div><p>${verdict} Average range width: ×${(10**mw).toFixed(1)} (high ÷ low).</p>
+      <div class="scroll"><table><tr><th>Question</th><th class="n">Your range</th><th class="n">Truth</th><th></th></tr>${rows.map(r=>`<tr><td>${esc(r.q)}</td><td class="n">${r.lo.toLocaleString()} – ${r.hi.toLocaleString()}</td><td class="n">${r.t.toLocaleString()}</td><td class="${r.hit?'good':'badc'}">${r.hit?'✓':'✗'}</td></tr>`).join('')}</table></div>
+      <div class="row" style="margin-top:16px"><button class="btn" id="cAgain">New set of 10</button></div>`;
+    $('#cAgain').onclick=()=>{cal=null;renderCalib()};
+  }
+}
+
+/* ---------- stats ---------- */
+let statMode='classic';
+function renderStats(){
+  const runs=store.get('runs',[]),best=store.get('best',{}),types=store.get('types',{});
+  if(!runs.length){$('#sBody').innerHTML='<p class="hint">No runs yet — play a drill and your scores will show up here.</p>';return}
+  const modes=MODES.filter(m=>runs.some(r=>r.mode===m.id));
+  if(!modes.some(m=>m.id===statMode))statMode=modes[0].id;
+  const table=modes.map(m=>{const rs=runs.filter(r=>r.mode===m.id);const b=Math.max(...rs.map(r=>r.score));const last=rs.slice(-5);const avg=last.reduce((a,r)=>a+r.score,0)/last.length;
+    return`<tr><td>${m.name}</td><td class="n">${rs.length}</td><td class="n">${b}</td><td class="n">${avg.toFixed(1)}</td></tr>`}).join('');
+  const tl=Object.entries(types).filter(([,t])=>t.n>=3).map(([k,t])=>({k,acc:t.c/t.n,avg:t.c?t.time/t.c:99,n:t.n})).sort((a,b)=>a.acc-b.acc||b.avg-a.avg).slice(0,12);
+  const maxAvg=Math.max(1,...tl.map(t=>Math.min(t.avg,30)));
+  $('#sBody').innerHTML=`<div class="scroll"><table><tr><th>Mode</th><th class="n">Runs</th><th class="n">Best</th><th class="n">Last-5 avg</th></tr>${table}</table></div>
+    <h2>Score trend</h2><div class="filters">${modes.map(m=>`<button class="chip ${m.id===statMode?'on':''}" data-sm="${m.id}">${m.name}</button>`).join('')}</div>
+    <div class="fig"><canvas id="chart"></canvas></div>
+    <h2>Weak spots</h2><p class="hint">Question types with at least 3 attempts, worst accuracy first, then slowest.</p>
+    <div class="scroll"><table><tr><th>Type</th><th class="n">Seen</th><th class="n">Accuracy</th><th>Avg time</th></tr>${tl.map(t=>`<tr><td>${esc(t.k)}</td><td class="n">${t.n}</td><td class="n">${Math.round(t.acc*100)}%</td><td><div class="row" style="flex-wrap:nowrap"><div class="meter" style="flex:1"><i style="width:${Math.min(t.avg,30)/maxAvg*100}%"></i></div><span class="n" style="font-family:JetBrains Mono,monospace;font-size:13px">${t.avg<99?t.avg.toFixed(1)+'s':'—'}</span></div></td></tr>`).join('')}</table></div>
+    <div class="row" style="margin-top:24px"><button class="btn ghost" id="resetS">Reset all stats</button><span id="resetMsg" class="hint"></span></div>`;
+  $$('[data-sm]').forEach(b=>b.onclick=()=>{statMode=b.dataset.sm;renderStats()});
+  let armed=false;$('#resetS').onclick=()=>{if(!armed){armed=true;$('#resetMsg').textContent='Click again to confirm — this deletes all scores.';return}
+    ['runs','best','types','calib','solved'].forEach(k=>store.set(k,k==='best'||k==='types'?{}:[]));solved=new Set();renderStats()};
+  drawChart(runs.filter(r=>r.mode===statMode).slice(-40));
+}
+function drawChart(rs){
+  const cv=$('#chart');if(!cv)return;
+  const draw=()=>{const W=cv.clientWidth,H=cv.clientHeight,dpr=devicePixelRatio||1;cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,W,H);
+    if(!rs.length)return;const pl=40,pr=16,pt=16,pb=28;const mx=Math.max(...rs.map(r=>r.score),1),mn=Math.min(0,...rs.map(r=>r.score));
+    const X=i=>pl+(rs.length===1?(W-pl-pr)/2:i*(W-pl-pr)/(rs.length-1)),Y=v=>pt+(1-(v-mn)/(mx-mn||1))*(H-pt-pb);
+    x.strokeStyle='#3a2844';x.fillStyle='#b7a6c4';x.font='12px Inter';x.lineWidth=1;
+    for(let k=0;k<=4;k++){const v=mn+(mx-mn)*k/4,y=Y(v);x.beginPath();x.moveTo(pl,y);x.lineTo(W-pr,y);x.stroke();x.fillText(Math.round(v),6,y+4)}
+    x.fillText('last '+rs.length+' runs →',pl,H-8);
+    x.strokeStyle='#ff8fa3';x.lineWidth=2.5;x.beginPath();rs.forEach((r,i)=>i?x.lineTo(X(i),Y(r.score)):x.moveTo(X(i),Y(r.score)));x.stroke();
+    x.fillStyle='#ff8fa3';rs.forEach((r,i)=>{x.beginPath();x.arc(X(i),Y(r.score),3.5,0,7);x.fill()});};
+  draw();if(window._ro)window._ro.disconnect();window._ro=new ResizeObserver(draw);window._ro.observe(cv);
+}
+
+/* ---------- PWA ---------- */
+try{if('serviceWorker'in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+}
+</script>
+</body>
+</html>
